@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		3EBCC44C2F45EE6700CD7D45 /* Ready Set Easy Now.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Ready Set Easy Now.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3EF1E7A82F4EEF0B00A830A9 /* Ready-Set-Easy-Now-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Ready-Set-Easy-Now-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +33,7 @@
 		3EBCC4432F45EE6700CD7D45 = {
 			isa = PBXGroup;
 			children = (
+				3EF1E7A82F4EEF0B00A830A9 /* Ready-Set-Easy-Now-Info.plist */,
 				3EBCC44E2F45EE6700CD7D45 /* Trip */,
 				3EBCC44D2F45EE6700CD7D45 /* Products */,
 			);
@@ -254,6 +256,9 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ready-Set-Easy-Now-Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires access to the camera to take photos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -293,6 +298,9 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ready-Set-Easy-Now-Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires access to the camera to take photos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

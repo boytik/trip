@@ -1,19 +1,22 @@
-
 import SwiftUI
 import Combine
+
 // MARK: - App Entry
 
 @main
 struct ReadySetEasyNowApp: App {
+    @UIApplicationDelegateAdaptor(DocumentFlowAppDelegate.self) var appDelegate
 
     @StateObject private var vault = VitalDataVault.shared
     @StateObject private var router = VitalRouter()
+    @StateObject private var flowState = DocumentFlowState()
 
     var body: some Scene {
         WindowGroup {
-            VitalLifecycleGate()
+            DocumentRootView()
                 .environmentObject(vault)
                 .environmentObject(router)
+                .environmentObject(flowState)
                 .preferredColorScheme(.dark)
         }
     }
