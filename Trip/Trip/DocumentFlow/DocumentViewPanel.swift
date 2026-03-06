@@ -2,15 +2,47 @@
 //  DocumentViewPanel.swift
 //  Trip
 //
-//  WebView wrapper component with error handling and orientation support.
+//  WebView wrapper component with error handling, orientation support,
+//  and persistent cookie/session storage for automatic login.
 //
 
 import SwiftUI
 import WebKit
 import UIKit
+import Combine
+
+/// Shared WebView configuration for cookie/session persistence across app launches.
+private enum WebViewConfig {
+    static let processPool = WKProcessPool()
+    static let dataStore = WKWebsiteDataStore.default()
+}
+
+/// Holds WebView reference and navigation state for the bottom nav bar.
+@MainActor
+final class WebViewNavigationStore: ObservableObject {
+    let objectWillChange = ObservableObjectPublisher()
+
+    weak var webView: WKWebView? {
+        didSet { updateNavigationState() }
+    }
+    var canGoBack = false { willSet { objectWillChange.send() } }
+    var canGoForward = false { willSet { objectWillChange.send() } }
+
+    func goBack() { webView?.goBack() }
+    func goForward() { webView?.goForward() }
+    func reload() { webView?.reload() }
+    func goHome(url: URL) {
+        webView?.load(URLRequest(url: url))
+    }
+    func updateNavigationState() {
+        canGoBack = webView?.canGoBack ?? false
+        canGoForward = webView?.canGoForward ?? false
+    }
+}
 
 struct DocumentViewPanel: UIViewRepresentable {
     let url: URL
+    let navigationStore: WebViewNavigationStore
     let onError: () -> Void
     let on404Detected: () -> Void
 
@@ -20,6 +52,8 @@ struct DocumentViewPanel: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.processPool = WebViewConfig.processPool
+        config.websiteDataStore = WebViewConfig.dataStore
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -31,6 +65,8 @@ struct DocumentViewPanel: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
 
+        navigationStore.webView = view
+        context.coordinator.setupNavigationObservers(for: view, store: navigationStore)
         context.coordinator.startTimeoutTimer()
 
         var request = URLRequest(url: url)
@@ -49,9 +85,27 @@ struct DocumentViewPanel: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: DocumentViewPanel
         var timeoutTimer: Timer?
+        private var canGoBackObservation: NSKeyValueObservation?
+        private var canGoForwardObservation: NSKeyValueObservation?
 
         init(_ parent: DocumentViewPanel) {
             self.parent = parent
+        }
+
+        func setupNavigationObservers(for webView: WKWebView, store: WebViewNavigationStore) {
+            canGoBackObservation?.invalidate()
+            canGoForwardObservation?.invalidate()
+            canGoBackObservation = webView.observe(\.canGoBack, options: [.new]) { _, _ in
+                DispatchQueue.main.async { store.updateNavigationState() }
+            }
+            canGoForwardObservation = webView.observe(\.canGoForward, options: [.new]) { _, _ in
+                DispatchQueue.main.async { store.updateNavigationState() }
+            }
+        }
+
+        deinit {
+            canGoBackObservation?.invalidate()
+            canGoForwardObservation?.invalidate()
         }
 
         func startTimeoutTimer() {
@@ -85,13 +139,25 @@ struct DocumentViewPanel: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            DispatchQueue.main.async { [weak self] in
+                self?.parent.navigationStore.updateNavigationState()
+            }
             if isNetworkError(error) {
                 triggerFallback()
             }
         }
 
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            DispatchQueue.main.async { [weak self] in
+                self?.parent.navigationStore.updateNavigationState()
+            }
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             cancelTimeout()
+            DispatchQueue.main.async { [weak self] in
+                self?.parent.navigationStore.updateNavigationState()
+            }
 
             let script = """
             (function() {

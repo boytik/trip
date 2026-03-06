@@ -26,6 +26,7 @@ struct DocumentRootView: View {
                     on404Detected: handle404Detected
                 )
                 .id(url.absoluteString)
+                .onAppear { setWebViewOrientation() }
 
             case .nativeApp:
                 NativeAppViewControllerWrapper {
@@ -58,5 +59,21 @@ struct DocumentRootView: View {
 
     private func handle404Detected() {
         handleRouteError()
+    }
+
+    private func setWebViewOrientation() {
+        print("🔄 [Orientation] setWebViewOrientation called from DocumentRootView.onAppear")
+        guard let appDelegate = DocumentFlowAppDelegate.shared else {
+            print("❌ [Orientation] DocumentFlowAppDelegate.shared is nil")
+            return
+        }
+        let mask: UIInterfaceOrientationMask = [.portrait, .landscapeLeft, .landscapeRight]
+        print("🔄 [Orientation] setting orientationLock to all (portrait+landscape)")
+        appDelegate.orientationLock = mask
+        // Retry after delay — window scene may not be ready on first appear
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("🔄 [Orientation] delayed retry: re-applying orientation")
+            appDelegate.orientationLock = mask
+        }
     }
 }

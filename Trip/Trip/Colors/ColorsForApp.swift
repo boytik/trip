@@ -12,6 +12,9 @@ enum VitalPalette {
     /// RGB approximation of RAL 9005 Jet Black, adapted for OLED.
     static let obsidianPulse = Color(red: 0.06, green: 0.06, blue: 0.08)
 
+    /// Alias for safe area and navigation bar background.
+    static let myBackground = obsidianPulse
+
     /// Slightly lifted dark surface — cards, sheets, elevated layers.
     static let midnightVein = Color(red: 0.10, green: 0.10, blue: 0.13)
 

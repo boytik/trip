@@ -15,8 +15,10 @@ struct WebViewHostingViewControllerWrapper: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> WebViewHostingViewController {
         let vc = WebViewHostingViewController()
+        vc.currentURL = url
         let content = DocumentViewContainer(
             url: url,
+            navStore: vc.navStore,
             onError: onError,
             on404Detected: on404Detected
         )
@@ -36,7 +38,9 @@ struct WebViewHostingViewControllerWrapper: UIViewControllerRepresentable {
 }
 
 final class WebViewHostingViewController: UIViewController {
+    let navStore = WebViewNavigationStore()
     var hostingController: UIHostingController<DocumentViewContainer>?
+    var currentURL: URL?
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         [.portrait, .landscapeLeft, .landscapeRight]
@@ -48,26 +52,45 @@ final class WebViewHostingViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = UIColor(VitalPalette.myBackground)
     }
 
     func updateContent(url: URL, onError: @escaping () -> Void, on404Detected: @escaping () -> Void) {
-        let content = DocumentViewContainer(url: url, onError: onError, on404Detected: on404Detected)
+        guard url != currentURL else { return }
+        currentURL = url
+        let content = DocumentViewContainer(url: url, navStore: navStore, onError: onError, on404Detected: on404Detected)
         hostingController?.rootView = content
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        if let appDelegate = UIApplication.shared.delegate as? DocumentFlowAppDelegate {
+        print("🔄 [Orientation] WebViewHostingViewController.viewWillAppear")
+        print("🔄 [Orientation] view.window: \(view.window != nil), windowScene: \(view.window?.windowScene != nil)")
+        if let appDelegate = DocumentFlowAppDelegate.shared {
             appDelegate.orientationLock = [.portrait, .landscapeLeft, .landscapeRight]
+            print("🔄 [Orientation] set orientationLock from WebViewHostingViewController")
+        } else {
+            print("❌ [Orientation] DocumentFlowAppDelegate.shared is nil")
         }
         if #available(iOS 16.0, *) {
             if let windowScene = view.window?.windowScene {
                 let geometryPreferences = UIWindowScene.GeometryPreferences.iOS(
                     interfaceOrientations: [.portrait, .landscapeLeft, .landscapeRight]
                 )
-                windowScene.requestGeometryUpdate(geometryPreferences) { _ in }
+                windowScene.requestGeometryUpdate(geometryPreferences) { error in
+                    print("🔄 [Orientation] WebViewHostingVC requestGeometryUpdate failed: \(error.localizedDescription)")
+                }
+            } else {
+                print("❌ [Orientation] view.window?.windowScene is nil in viewWillAppear")
             }
+        }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if view.window != nil, DocumentFlowAppDelegate.shared != nil {
+            print("🔄 [Orientation] viewDidAppear: window ready, re-applying orientation")
+            DocumentFlowAppDelegate.shared?.orientationLock = [.portrait, .landscapeLeft, .landscapeRight]
         }
     }
 }
