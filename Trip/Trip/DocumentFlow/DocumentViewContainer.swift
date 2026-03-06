@@ -8,6 +8,7 @@
 
 import SwiftUI
 import StoreKit
+import UIKit
 
 struct DocumentViewContainer: View {
     let url: URL
@@ -58,6 +59,8 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
     let homeURL: URL?
     @ViewBuilder let content: () -> Content
 
+    @State private var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
+
     var body: some View {
         GeometryReader { geo in
             let (navEdge, isVertical) = navBarEdgeAndOrientation(for: geo)
@@ -79,8 +82,7 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
                 }
             case .leading:
                 HStack(spacing: 0) {
-                    navBar
-                        .frame(width: 60)
+                    sideNavBar(navBar: navBar, geo: geo)
                     content()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -88,23 +90,69 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
                 HStack(spacing: 0) {
                     content()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    navBar
-                        .frame(width: 60)
+                    sideNavBar(navBar: navBar, geo: geo)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            let newOrientation = UIDevice.current.orientation
+            if newOrientation.isValidInterfaceOrientation {
+                deviceOrientation = newOrientation
+            }
+        }
+        .onAppear {
+            deviceOrientation = UIDevice.current.orientation
+        }
     }
 
     private func navBarEdgeAndOrientation(for geo: GeometryProxy) -> (Edge, Bool) {
         let isLandscape = geo.size.width > geo.size.height
-        guard isLandscape else { return (.bottom, false) }
-
-        // Notch side has larger safe area inset; nav goes opposite
-        if geo.safeAreaInsets.leading > geo.safeAreaInsets.trailing {
-            return (.trailing, true)  // notch on left → nav on right
+        guard isLandscape else {
+            print("🔄 [NavPanel] portrait → nav bottom")
+            return (.bottom, false)
         }
-        return (.leading, true)  // notch on right → nav on left
+
+        let orientation = deviceOrientation
+        let leadingInset = geo.safeAreaInsets.leading
+        let trailingInset = geo.safeAreaInsets.trailing
+
+        print("🔄 [NavPanel] landscape: deviceOrientation=\(orientation.rawValue) (\(deviceOrientationName(orientation))), size=\(Int(geo.size.width))×\(Int(geo.size.height)), safeArea leading=\(leadingInset) trailing=\(trailingInset)")
+
+        switch orientation {
+        case .landscapeLeft:
+            print("🔄 [NavPanel] → landscapeLeft (челка СЛЕВА) → nav справа (.trailing)")
+            return (.trailing, true)
+        case .landscapeRight:
+            print("🔄 [NavPanel] → landscapeRight (челка СПРАВА) → nav слева (.leading)")
+            return (.leading, true)
+        default:
+            if leadingInset > trailingInset {
+                print("🔄 [NavPanel] → default: leading>trailing → nav справа (.trailing)")
+                return (.trailing, true)
+            }
+            print("🔄 [NavPanel] → default: nav слева (.leading)")
+            return (.leading, true)
+        }
+    }
+
+    private func deviceOrientationName(_ o: UIDeviceOrientation) -> String {
+        switch o {
+        case .portrait: return "portrait"
+        case .portraitUpsideDown: return "portraitUpsideDown"
+        case .landscapeLeft: return "landscapeLeft"
+        case .landscapeRight: return "landscapeRight"
+        case .faceUp: return "faceUp"
+        case .faceDown: return "faceDown"
+        default: return "unknown(\(o.rawValue))"
+        }
+    }
+
+    private func sideNavBar<NavBar: View>(navBar: NavBar, geo: GeometryProxy) -> some View {
+        navBar
+            .frame(width: 48)
+            .padding(.top, geo.safeAreaInsets.top)
+            .padding(.bottom, geo.safeAreaInsets.bottom)
     }
 }
 
@@ -121,8 +169,8 @@ private struct WebViewNavBar: View {
                 VStack(spacing: 0) {
                     navButtons
                 }
-                .padding(.vertical, 16)
-                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 6)
                 .frame(maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
@@ -160,7 +208,7 @@ private struct WebViewNavBar: View {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .medium))
                 .foregroundColor(enabled ? VitalPalette.ivoryBreath : VitalPalette.ashVeil)
-                .frame(width: vertical ? 44 : nil, height: vertical ? 44 : 36)
+                .frame(width: vertical ? 36 : nil, height: vertical ? 36 : 36)
                 .frame(maxWidth: vertical ? nil : .infinity, maxHeight: vertical ? .infinity : nil)
         }
         .disabled(!enabled)
