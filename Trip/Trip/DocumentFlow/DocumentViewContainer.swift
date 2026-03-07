@@ -44,6 +44,21 @@ struct DocumentViewContainer: View {
     }
 }
 
+// MARK: - WebView Safe Area Modifier
+
+/// Применяет ignoresSafeArea по выбранным рёбрам. Портрет: только .bottom. Ландшафт: всё кроме стороны с чёлкой.
+private struct WebViewSafeAreaModifier: ViewModifier {
+    let edges: Edge.Set
+
+    func body(content: Content) -> some View {
+        if edges.isEmpty {
+            content
+        } else {
+            content.ignoresSafeArea(edges: edges)
+        }
+    }
+}
+
 // MARK: - Orientation-Aware Nav Bar Wrapper
 
 /// Positions nav bar opposite to the notch: bottom in portrait, left when notch is right, right when notch is left.
@@ -60,15 +75,14 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
             let navBar = WebViewNavBar(navStore: navStore, homeURL: homeURL, vertical: isVertical)
                 .background(VitalPalette.myBackground)
 
-            // В ландшафте убираем safe area снизу у WebView
-            let isLandscape = navEdge == .leading || navEdge == .trailing
-            let webViewEdges: Edge.Set = isLandscape ? [.top, .horizontal, .bottom] : [.top, .horizontal]
+            // Портрет: уважаем safe zone сверху (челка). Ландшафт: уважаем только сторону с чёлкой (напротив nav), убираем снизу (home indicator).
+            let webViewEdges: Edge.Set = webViewIgnoresSafeAreaEdges(navEdge: navEdge)
 
             switch navEdge {
             case .bottom:
                 VStack(spacing: 0) {
                     content()
-                        .ignoresSafeArea(edges: webViewEdges)
+                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     navBar
                 }
@@ -76,20 +90,20 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
                 VStack(spacing: 0) {
                     navBar
                     content()
-                        .ignoresSafeArea(edges: webViewEdges)
+                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             case .leading:
                 HStack(spacing: 0) {
                     sideNavBar(navBar: navBar, geo: geo)
                     content()
-                        .ignoresSafeArea(edges: webViewEdges)
+                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             case .trailing:
                 HStack(spacing: 0) {
                     content()
-                        .ignoresSafeArea(edges: webViewEdges)
+                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     sideNavBar(navBar: navBar, geo: geo)
                 }
@@ -98,12 +112,27 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             let newOrientation = UIDevice.current.orientation
-            if newOrientation.isValidInterfaceOrientation {
+            guard newOrientation.isValidInterfaceOrientation, newOrientation != .portraitUpsideDown else { return }
+            Task { @MainActor in
                 deviceOrientation = newOrientation
             }
         }
         .onAppear {
-            deviceOrientation = UIDevice.current.orientation
+            let o = UIDevice.current.orientation
+            deviceOrientation = (o.isValidInterfaceOrientation && o != .portraitUpsideDown) ? o : .portrait
+        }
+    }
+
+    /// Портрет: safe zone только сверху (игнорируем снизу). Ландшафт: safe zone напротив nav (где чёлка).
+    /// Поворот направо: nav слева, safe zone справа. Поворот налево: nav справа, safe zone слева.
+    private func webViewIgnoresSafeAreaEdges(navEdge: Edge) -> Edge.Set {
+        switch navEdge {
+        case .bottom, .top:
+            return [.bottom] // Портрет — safe zone только сверху, убираем снизу
+        case .leading:
+            return [.top, .bottom, .leading] // Nav слева → safe zone справа (.trailing)
+        case .trailing:
+            return [.top, .bottom, .trailing] // Nav справа → safe zone слева (.leading)
         }
     }
 
@@ -116,20 +145,21 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
         let aspectRatio = max(w, h) > 0 ? min(w, h) / max(w, h) : 1.0
         let geometrySaysLandscape = w > h && aspectRatio < 0.85
 
-        // Только если и геометрия, и устройство в ландшафте — показываем боковую панель
-        let isLandscape = geometrySaysLandscape && (orientation == .landscapeLeft || orientation == .landscapeRight)
+        // portraitUpsideDown не поддерживаем — трактуем как portrait
+        let effectiveOrientation: UIDeviceOrientation = (orientation == .portraitUpsideDown) ? .portrait : orientation
+        let isLandscape = geometrySaysLandscape && (effectiveOrientation == .landscapeLeft || effectiveOrientation == .landscapeRight)
 
         guard isLandscape else {
-            print("🔄 [NavPanel] portrait → nav bottom (aspect=\(String(format: "%.2f", aspectRatio)), orient=\(orientation.rawValue))")
+            print("🔄 [NavPanel] portrait → nav bottom (aspect=\(String(format: "%.2f", aspectRatio)), orient=\(effectiveOrientation.rawValue))")
             return (.bottom, false)
         }
 
         let leadingInset = geo.safeAreaInsets.leading
         let trailingInset = geo.safeAreaInsets.trailing
 
-        print("🔄 [NavPanel] landscape: deviceOrientation=\(orientation.rawValue) (\(deviceOrientationName(orientation))), size=\(Int(w))×\(Int(h)), safeArea leading=\(leadingInset) trailing=\(trailingInset)")
+        print("🔄 [NavPanel] landscape: deviceOrientation=\(effectiveOrientation.rawValue) (\(deviceOrientationName(effectiveOrientation))), size=\(Int(w))×\(Int(h)), safeArea leading=\(leadingInset) trailing=\(trailingInset)")
 
-        switch orientation {
+        switch effectiveOrientation {
         case .landscapeLeft:
             print("🔄 [NavPanel] → landscapeLeft (челка СЛЕВА) → nav справа (.trailing)")
             return (.trailing, true)
@@ -160,7 +190,7 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
 
     private func sideNavBar<NavBar: View>(navBar: NavBar, geo: GeometryProxy) -> some View {
         navBar
-            .frame(width: 48)
+            .frame(width: 36)
             .padding(.top, geo.safeAreaInsets.top)
             .padding(.bottom, geo.safeAreaInsets.bottom)
     }
@@ -179,15 +209,15 @@ private struct WebViewNavBar: View {
                 VStack(spacing: 0) {
                     navButtons
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 4)
                 .frame(maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
                     navButtons
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .frame(maxWidth: .infinity)
             }
         }
@@ -216,9 +246,9 @@ private struct WebViewNavBar: View {
     private func navButton(icon: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: 18, weight: .medium))
                 .foregroundColor(enabled ? VitalPalette.ivoryBreath : VitalPalette.ashVeil)
-                .frame(width: vertical ? 36 : nil, height: vertical ? 36 : 36)
+                .frame(width: vertical ? 28 : nil, height: vertical ? 28 : 32)
                 .frame(maxWidth: vertical ? nil : .infinity, maxHeight: vertical ? .infinity : nil)
         }
         .disabled(!enabled)
