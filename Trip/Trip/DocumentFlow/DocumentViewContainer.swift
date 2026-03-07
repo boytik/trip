@@ -1,10 +1,4 @@
-//
-//  DocumentViewContainer.swift
-//  Trip
-//
-//  WebView container with app rating alert and bottom navigation bar.
-//  Nav bar is pinned opposite to the notch: bottom in portrait, left/right in landscape.
-//
+
 
 import SwiftUI
 import StoreKit
@@ -107,17 +101,26 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
     }
 
     private func navBarEdgeAndOrientation(for geo: GeometryProxy) -> (Edge, Bool) {
-        let isLandscape = geo.size.width > geo.size.height
+        let orientation = deviceOrientation
+        let w = geo.size.width
+        let h = geo.size.height
+
+        // Клавиатура может дать почти квадратные размеры (402×399) — не считать ландшафтом
+        let aspectRatio = max(w, h) > 0 ? min(w, h) / max(w, h) : 1.0
+        let geometrySaysLandscape = w > h && aspectRatio < 0.85
+
+        // Только если и геометрия, и устройство в ландшафте — показываем боковую панель
+        let isLandscape = geometrySaysLandscape && (orientation == .landscapeLeft || orientation == .landscapeRight)
+
         guard isLandscape else {
-            print("🔄 [NavPanel] portrait → nav bottom")
+            print("🔄 [NavPanel] portrait → nav bottom (aspect=\(String(format: "%.2f", aspectRatio)), orient=\(orientation.rawValue))")
             return (.bottom, false)
         }
 
-        let orientation = deviceOrientation
         let leadingInset = geo.safeAreaInsets.leading
         let trailingInset = geo.safeAreaInsets.trailing
 
-        print("🔄 [NavPanel] landscape: deviceOrientation=\(orientation.rawValue) (\(deviceOrientationName(orientation))), size=\(Int(geo.size.width))×\(Int(geo.size.height)), safeArea leading=\(leadingInset) trailing=\(trailingInset)")
+        print("🔄 [NavPanel] landscape: deviceOrientation=\(orientation.rawValue) (\(deviceOrientationName(orientation))), size=\(Int(w))×\(Int(h)), safeArea leading=\(leadingInset) trailing=\(trailingInset)")
 
         switch orientation {
         case .landscapeLeft:
