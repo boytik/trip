@@ -26,7 +26,6 @@ struct DocumentViewContainer: View {
                     on404Detected: on404Detected
                 )
                 .id(url.absoluteString)
-                .ignoresSafeArea(edges: [.top, .horizontal])
             }
         )
         .background(VitalPalette.myBackground.ignoresSafeArea())
@@ -61,10 +60,15 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
             let navBar = WebViewNavBar(navStore: navStore, homeURL: homeURL, vertical: isVertical)
                 .background(VitalPalette.myBackground)
 
+            // В ландшафте убираем safe area снизу у WebView
+            let isLandscape = navEdge == .leading || navEdge == .trailing
+            let webViewEdges: Edge.Set = isLandscape ? [.top, .horizontal, .bottom] : [.top, .horizontal]
+
             switch navEdge {
             case .bottom:
                 VStack(spacing: 0) {
                     content()
+                        .ignoresSafeArea(edges: webViewEdges)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     navBar
                 }
@@ -72,17 +76,20 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
                 VStack(spacing: 0) {
                     navBar
                     content()
+                        .ignoresSafeArea(edges: webViewEdges)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             case .leading:
                 HStack(spacing: 0) {
                     sideNavBar(navBar: navBar, geo: geo)
                     content()
+                        .ignoresSafeArea(edges: webViewEdges)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             case .trailing:
                 HStack(spacing: 0) {
                     content()
+                        .ignoresSafeArea(edges: webViewEdges)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     sideNavBar(navBar: navBar, geo: geo)
                 }

@@ -62,6 +62,8 @@ struct DocumentViewPanel: UIViewRepresentable {
         view.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1"
         view.backgroundColor = .black
         view.scrollView.backgroundColor = .black
+        // Без этого контент не заходит под home indicator в ландшафте
+        view.scrollView.contentInsetAdjustmentBehavior = .never
         view.navigationDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
 
@@ -80,7 +82,13 @@ struct DocumentViewPanel: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        // Гарантируем отсутствие отступов под safe area (home indicator)
+        uiView.scrollView.contentInsetAdjustmentBehavior = .never
+        uiView.scrollView.contentInset = .zero
+        uiView.scrollView.verticalScrollIndicatorInsets = .zero
+        uiView.scrollView.horizontalScrollIndicatorInsets = .zero
+    }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: DocumentViewPanel

@@ -26,6 +26,7 @@ struct DocumentRootView: View {
                     on404Detected: handle404Detected
                 )
                 .id(url.absoluteString)
+                .ignoresSafeArea(.all, edges: .all)
                 .onAppear { setWebViewOrientation() }
 
             case .nativeApp:
