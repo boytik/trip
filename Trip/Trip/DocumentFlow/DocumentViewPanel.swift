@@ -58,6 +58,20 @@ struct DocumentViewPanel: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
 
+        // Убираем левый отступ у веб-страниц (многие сайты добавляют margin)
+        let removeLeftMarginScript = WKUserScript(
+            source: """
+            (function() {
+                var style = document.createElement('style');
+                style.textContent = 'html, body { margin-left: 0 !important; padding-left: 0 !important; }';
+                (document.head || document.documentElement).appendChild(style);
+            })();
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(removeLeftMarginScript)
+
         let view = WKWebView(frame: .zero, configuration: config)
         view.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1"
         view.backgroundColor = .black

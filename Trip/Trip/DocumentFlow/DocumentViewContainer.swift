@@ -72,42 +72,51 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
     var body: some View {
         GeometryReader { geo in
             let (navEdge, isVertical) = navBarEdgeAndOrientation(for: geo)
-            let navBar = WebViewNavBar(navStore: navStore, homeURL: homeURL, vertical: isVertical)
+            let navBar = WebViewNavBar(navStore: navStore, homeURL: homeURL, vertical: isVertical, navEdge: navEdge)
                 .background(VitalPalette.myBackground)
 
-            // Портрет: уважаем safe zone сверху (челка). Ландшафт: уважаем только сторону с чёлкой (напротив nav), убираем снизу (home indicator).
-            let webViewEdges: Edge.Set = webViewIgnoresSafeAreaEdges(navEdge: navEdge)
+            // Весь стэк игнорирует safe area там, где нужно. Safe zone остаётся только там, где чёлка.
+            let containerEdges: Edge.Set = containerIgnoresSafeAreaEdges(navEdge: navEdge)
 
-            switch navEdge {
-            case .bottom:
-                VStack(spacing: 0) {
-                    content()
-                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    navBar
-                }
-            case .top:
-                VStack(spacing: 0) {
-                    navBar
-                    content()
-                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            case .leading:
-                HStack(spacing: 0) {
-                    sideNavBar(navBar: navBar, geo: geo)
-                    content()
-                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            case .trailing:
-                HStack(spacing: 0) {
-                    content()
-                        .modifier(WebViewSafeAreaModifier(edges: webViewEdges))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    sideNavBar(navBar: navBar, geo: geo)
+            Group {
+                switch navEdge {
+                case .bottom:
+                    VStack(spacing: 0) {
+                        content()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        navBar
+                    }
+                case .top:
+                    VStack(spacing: 0) {
+                        navBar
+                        content()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                case .leading:
+                    HStack(spacing: 0) {
+                        sideNavBar(navBar: navBar, geo: geo)
+                            .overlay(alignment: .trailing) {
+                                Rectangle()
+                                    .fill(VitalPalette.charcoalBreath.opacity(0.5))
+                                    .frame(width: 1)
+                            }
+                        content()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                case .trailing:
+                    HStack(spacing: 0) {
+                        content()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        sideNavBar(navBar: navBar, geo: geo)
+                            .overlay(alignment: .leading) {
+                                Rectangle()
+                                    .fill(VitalPalette.charcoalBreath.opacity(0.5))
+                                    .frame(width: 1)
+                            }
+                    }
                 }
             }
+            .ignoresSafeArea(edges: containerEdges)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -123,12 +132,12 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
         }
     }
 
-    /// Портрет: safe zone только сверху (игнорируем снизу). Ландшафт: safe zone напротив nav (где чёлка).
-    /// Поворот направо: nav слева, safe zone справа. Поворот налево: nav справа, safe zone слева.
-    private func webViewIgnoresSafeAreaEdges(navEdge: Edge) -> Edge.Set {
+    /// Весь контейнер (WebView + nav) игнорирует safe area везде, кроме стороны с чёлкой.
+    /// Портрет: safe zone сверху (чёлка), игнорируем снизу. Ландшафт: safe zone напротив nav (чёлка).
+    private func containerIgnoresSafeAreaEdges(navEdge: Edge) -> Edge.Set {
         switch navEdge {
         case .bottom, .top:
-            return [.bottom] // Портрет — safe zone только сверху, убираем снизу
+            return [.bottom] // Портрет — safe zone только сверху, игнорируем снизу
         case .leading:
             return [.top, .bottom, .leading] // Nav слева → safe zone справа (.trailing)
         case .trailing:
@@ -190,7 +199,7 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
 
     private func sideNavBar<NavBar: View>(navBar: NavBar, geo: GeometryProxy) -> some View {
         navBar
-            .frame(width: 36)
+            .frame(width: 28)
             .padding(.top, geo.safeAreaInsets.top)
             .padding(.bottom, geo.safeAreaInsets.bottom)
     }
@@ -202,6 +211,7 @@ private struct WebViewNavBar: View {
     @ObservedObject var navStore: WebViewNavigationStore
     let homeURL: URL?
     var vertical: Bool = false
+    var navEdge: Edge = .bottom
 
     var body: some View {
         Group {
@@ -210,7 +220,7 @@ private struct WebViewNavBar: View {
                     navButtons
                 }
                 .padding(.vertical, 4)
-                .padding(.horizontal, 4)
+                .padding(navEdge == .leading ? .leading : .trailing, 3)
                 .frame(maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
@@ -248,7 +258,7 @@ private struct WebViewNavBar: View {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(enabled ? VitalPalette.ivoryBreath : VitalPalette.ashVeil)
-                .frame(width: vertical ? 28 : nil, height: vertical ? 28 : 32)
+                .frame(width: vertical ? 24 : nil, height: vertical ? 24 : 32)
                 .frame(maxWidth: vertical ? nil : .infinity, maxHeight: vertical ? .infinity : nil)
         }
         .disabled(!enabled)
