@@ -52,7 +52,7 @@ final class WebViewHostingViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(VitalPalette.myBackground)
+        view.backgroundColor = UIColor(VitalPalette.navPanelBackground)
     }
 
     func updateContent(url: URL, onError: @escaping () -> Void, on404Detected: @escaping () -> Void) {

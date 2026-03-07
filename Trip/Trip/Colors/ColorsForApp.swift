@@ -14,6 +14,9 @@ enum VitalPalette {
 
     /// Alias for safe area and navigation bar background.
     static let myBackground = obsidianPulse
+    
+    /// Nav panel background — warm dark brown.
+    static let navPanelBackground = Color(red: 0x2D / 255.0, green: 0x22 / 255.0, blue: 0x1E / 255.0)
 
     /// Slightly lifted dark surface — cards, sheets, elevated layers.
     static let midnightVein = Color(red: 0.10, green: 0.10, blue: 0.13)

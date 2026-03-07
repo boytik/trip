@@ -28,7 +28,7 @@ struct DocumentViewContainer: View {
                 .id(url.absoluteString)
             }
         )
-        .background(VitalPalette.myBackground.ignoresSafeArea())
+        .background(VitalPalette.navPanelBackground.ignoresSafeArea())
         .onAppear {
             requestAppReview()
         }
@@ -73,7 +73,7 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
         GeometryReader { geo in
             let (navEdge, isVertical) = navBarEdgeAndOrientation(for: geo)
             let navBar = WebViewNavBar(navStore: navStore, homeURL: homeURL, vertical: isVertical, navEdge: navEdge)
-                .background(VitalPalette.myBackground)
+                .background(VitalPalette.navPanelBackground)
 
             // Весь стэк игнорирует safe area там, где нужно. Safe zone остаётся только там, где чёлка.
             let containerEdges: Edge.Set = containerIgnoresSafeAreaEdges(navEdge: navEdge)
@@ -199,7 +199,7 @@ private struct OrientationAwareNavBarWrapper<Content: View>: View {
 
     private func sideNavBar<NavBar: View>(navBar: NavBar, geo: GeometryProxy) -> some View {
         navBar
-            .frame(width: 28)
+            .frame(width: 40)
             .padding(.top, geo.safeAreaInsets.top)
             .padding(.bottom, geo.safeAreaInsets.bottom)
     }
@@ -219,8 +219,8 @@ private struct WebViewNavBar: View {
                 VStack(spacing: 0) {
                     navButtons
                 }
-                .padding(.vertical, 4)
-                .padding(navEdge == .leading ? .leading : .trailing, 3)
+                .padding(.vertical, 6)
+                .padding(navEdge == .leading ? .leading : .trailing, 5)
                 .frame(maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
@@ -231,7 +231,7 @@ private struct WebViewNavBar: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .background(VitalPalette.myBackground)
+        .background(VitalPalette.navPanelBackground)
     }
 
     private var navButtons: some View {
@@ -258,7 +258,7 @@ private struct WebViewNavBar: View {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(enabled ? VitalPalette.ivoryBreath : VitalPalette.ashVeil)
-                .frame(width: vertical ? 24 : nil, height: vertical ? 24 : 32)
+                .frame(width: vertical ? 30 : nil, height: vertical ? 30 : 32)
                 .frame(maxWidth: vertical ? nil : .infinity, maxHeight: vertical ? .infinity : nil)
         }
         .disabled(!enabled)
